@@ -18,6 +18,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "messages must be an array" }, { status: 400 });
   }
 
-  const result = generateReply(messages);
+  const result = await generateReply(messages);
   return NextResponse.json(result);
 }

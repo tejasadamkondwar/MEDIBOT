@@ -8,6 +8,28 @@ Senior-friendly medical help chatbot inspired by the idea of *NalaFaad*, built f
 - Simple **symptom triage** (emergency / urgent / self-care)
 - Emergency guidance prompts (call local emergency number, stay safe while waiting)
 
+### Added features (requested)
+
+1) **Caregiver escalation (SMS/WhatsApp)**
+   - UI to configure caregiver phone number
+   - API endpoint: `POST /api/escalate`
+   - Uses **Twilio** if env vars are present, otherwise runs in **demo mode**
+
+2) **Medication reminders**
+   - Natural language: “Remind me to take metformin at 8pm every day”
+   - Stored in `localStorage` and displayed in a reminders list
+   - Optional browser notifications (best-effort demo)
+
+3) **LLM backend option**
+   - If `OPENAI_API_KEY` is set, `/api/chat` will use OpenAI Chat Completions
+   - If not set, it falls back to the rule-based replies
+
+4) **Voice input/output**
+   - Voice dictation (SpeechRecognition when supported)
+   - Read replies aloud (SpeechSynthesis)
+
+Also included: basic **language support** toggle (English / हिन्दी) for the UI starter + placeholder.
+
 > Note: This demo does **not** use an external LLM API; it runs offline with rule-based triage.
 > You can later swap in OpenAI/Gemini/etc. behind the same `/api/chat` endpoint.
 
@@ -26,6 +48,27 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+### Environment variables (optional)
+
+#### OpenAI (LLM replies)
+
+Set:
+
+```bash
+export OPENAI_API_KEY="..."
+export OPENAI_MODEL="gpt-4o-mini"  # optional
+```
+
+#### Twilio (caregiver SMS / WhatsApp)
+
+Set:
+
+```bash
+export TWILIO_ACCOUNT_SID="..."
+export TWILIO_AUTH_TOKEN="..."
+export TWILIO_FROM_NUMBER="+15551234567"  # SMS or whatsapp-enabled number
+```
 
 ### Project structure
 

@@ -1,4 +1,6 @@
 import { triageFromText, type TriageResult } from "@/lib/triage";
+import { extractReminderAction, type BotAction } from "@/lib/actions";
+import { llmReply } from "@/lib/llm";
 
 export type BotMessage = {
   role: "user" | "assistant";
@@ -8,6 +10,7 @@ export type BotMessage = {
 export type BotReply = {
   reply: string;
   triage: TriageResult;
+  actions?: BotAction[];
 };
 
 function formatTriageBanner(triage: TriageResult): string {
@@ -47,10 +50,14 @@ function buildSeniorFriendlyQuestions(triage: TriageResult): string {
   );
 }
 
-export function generateReply(history: BotMessage[]): BotReply {
+export async function generateReply(history: BotMessage[]): Promise<BotReply> {
   const lastUser = [...history].reverse().find((m) => m.role === "user");
   const userText = lastUser?.content ?? "";
   const triage = triageFromText(userText);
+
+  const actions: BotAction[] = [];
+  const reminder = extractReminderAction(userText);
+  if (reminder) actions.push(reminder);
 
   const banner = formatTriageBanner(triage);
   const questions = buildSeniorFriendlyQuestions(triage);
@@ -76,18 +83,31 @@ export function generateReply(history: BotMessage[]): BotReply {
       .filter(Boolean)
       .join("\n");
   } else {
-    replyBody = [
-      generalSafetyDisclaimer(),
-      "Tell me what’s going on and I’ll guide you step-by-step.",
-      questions,
-      "\nYou can also ask me:",
-      "- ‘Set a medication reminder’ (demo)",
-      "- ‘What should I do if I missed a dose?’ (general guidance)",
-      "- ‘I fell down’ (safety checks)",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    // Prefer an LLM response if configured.
+    const llm = await llmReply(history);
+    if (llm) {
+      replyBody = [generalSafetyDisclaimer(), "\n", llm, questions].filter(Boolean).join("\n");
+    } else {
+      replyBody = [
+        generalSafetyDisclaimer(),
+        "Tell me what’s going on and I’ll guide you step-by-step.",
+        questions,
+        "\nYou can also ask me:",
+        "- ‘Remind me to take metformin at 8pm every day’",
+        "- ‘I missed my medicine dose’ (general guidance)",
+        "- ‘I fell down’ (safety checks)",
+        "- ‘Message my caregiver’ (demo escalation)",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    if (reminder) {
+      replyBody +=
+        `\n\nOkay — I’ll set a reminder for “${reminder.label}” at ${String(reminder.hour).padStart(2, "0")}:${String(reminder.minute).padStart(2, "0")} (${reminder.repeat}). ` +
+        "If notifications are disabled, I’ll still keep it in your reminders list.";
+    }
   }
 
-  return { reply: replyBody, triage };
+  return { reply: replyBody, triage, actions: actions.length ? actions : undefined };
 }
